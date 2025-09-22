@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Random Hub</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #1e1e2f;
+      color: #e5e5e5;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin: 0;
+      padding: 20px;
+      min-height: 100vh;
+    }
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    h1 {
+      font-size: 2rem;
+      margin: 0;
+      color: #4ade80;
+      text-shadow: 0px 0px 8px rgba(0,0,0,0.5);
+    }
+    #langBtn {
+      padding: 5px 10px;
+      font-size: 0.9rem;
+      background: #3b3b4f;
+      color: #e5e5e5;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    #langBtn:hover {
+      background: #4ade80;
+      color: #111;
+    }
+    #modes {
+      margin-bottom: 15px;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    button {
+      margin: 5px;
+      padding: 8px 18px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 1rem;
+      background: #3b3b4f;
+      color: #e5e5e5;
+      transition: all 0.3s;
+    }
+    button:hover {
+      background: #4ade80;
+      color: #111;
+    }
+    .controls {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+    #content {
+      width: 80%;
+      max-width: 700px;
+      background: #2b2b3d;
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0px 4px 15px rgba(0,0,0,0.4);
+      text-align: center;
+      min-height: 300px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      transition: opacity 0.5s ease;
+    }
+    #content.loading {
+      opacity: 0.5;
+    }
+    #content img {
+      max-width: 100%;
+      border-radius: 12px;
+    }
+    #timer {
+      margin-top: 15px;
+      font-size: 1rem;
+      color: #a1a1aa;
+      text-align: center;
+    }
+    #progressBar {
+      width: 200px;
+      height: 5px;
+      background: #3b3b4f;
+      border-radius: 5px;
+      margin-top: 5px;
+      overflow: hidden;
+    }
+    #progress {
+      height: 100%;
+      background: #4ade80;
+      width: 100%;
+      transition: width 1s linear;
+    }
+    #history {
+      width: 80%;
+      max-width: 700px;
+      margin-top: 20px;
+      background: #2b2b3d;
+      border-radius: 12px;
+      padding: 15px;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    #history h3 {
+      margin: 0 0 10px 0;
+      color: #4ade80;
+    }
+    #history ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    #history li {
+      padding: 5px 0;
+      border-bottom: 1px solid #3b3b4f;
+      font-size: 0.9rem;
+    }
+    .copy-btn {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      font-size: 0.8rem;
+      padding: 5px 10px;
+    }
+    @media (max-width: 600px) {
+      #content, #history {
+        width: 95%;
+      }
+      h1 {
+        font-size: 1.5rem;
+      }
+      button {
+        font-size: 0.9rem;
+        padding: 6px 12px;
+      }
+      .header {
+        flex-direction: column;
+        gap: 5px;
+      }
+      #progressBar {
+        width: 150px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1 id="title">🌑 Random Hub</h1>
+    <button id="langBtn" onclick="toggleLang()">EN</button>
+  </div>
+  
+  <div id="modes">
+    <button id="imageBtn" onclick="setMode('image')">🖼️ Imagem</button>
+    <button id="textBtn" onclick="setMode('text')">📜 Texto</button>
+    <button id="pauseBtn" onclick="toggleTimer()">⏸️ Pausar</button>
+  </div>
+
+  <div class="controls">
+    <label id="entropyLabel">⚡ Entropia:</label>
+    <input type="number" id="entropy" min="1" value="10" oninput="updateEntropy(this.value)" onblur="if(this.value<1)this.value=1">
+    <span id="entropyValue">10s</span>
+  </div>
+
+  <div id="content">Carregando...</div>
+  <div id="timer">
+    ⏳ <span id="timerText">Próxima atualização em:</span> <span id="countdown">10</span>s
+    <div id="progressBar"><div id="progress"></div></div>
+  </div>
+
+  <div id="history">
+    <h3 id="historyTitle">📜 Histórico</h3>
+    <ul id="historyList"></ul>
+  </div>
+
+  <script>
+    let mode = "image";
+    let interval = 10;
+    let countdown = interval;
+    let timer;
+    let timerPaused = false;
+    let lang = 'pt';
+    let history = [];
+
+    const translations = {
+      pt: {
+        title: '🌑 Random Hub',
+        imageBtn: '🖼️ Imagem',
+        textBtn: '📜 Texto',
+        pauseBtn: '⏸️ Pausar',
+        resumeBtn: '▶️ Retomar',
+        entropyLabel: '⚡ Entropia:',
+        entropyValue: (val) => `${val}s`,
+        loading: 'Carregando...',
+        timerText: 'Próxima atualização em:',
+        historyTitle: '📜 Histórico',
+        imageType: 'Imagem',
+        textType: 'Texto',
+        imageDesc: 'Imagem aleatória',
+        copyBtn: 'Copiar',
+        copySuccess: 'Conteúdo copiado para a área de transferência!',
+        copyError: 'Erro ao copiar conteúdo.',
+        errorMsg: 'Erro ao carregar conteúdo:'
+      },
+      en: {
+        title: '🌑 Random Hub',
+        imageBtn: '🖼️ Image',
+        textBtn: '📜 Text',
+        pauseBtn: '⏸️ Pause',
+        resumeBtn: '▶️ Resume',
+        entropyLabel: '⚡ Entropy:',
+        entropyValue: (val) => `${val}s`,
+        loading: 'Loading...',
+        timerText: 'Next update in:',
+        historyTitle: '📜 History',
+        imageType: 'Image',
+        textType: 'Text',
+        imageDesc: 'Random image',
+        copyBtn: 'Copy',
+        copySuccess: 'Content copied to clipboard!',
+        copyError: 'Error copying content.',
+        errorMsg: 'Error loading content:'
+      }
+    };
+
+    function updateUI() {
+      const t = translations[lang];
+      document.getElementById('title').innerText = t.title;
+      document.getElementById('imageBtn').innerText = t.imageBtn;
+      document.getElementById('textBtn').innerText = t.textBtn;
+      document.querySelector('#pauseBtn').innerText = timerPaused ? t.resumeBtn : t.pauseBtn;
+      document.getElementById('entropyLabel').innerText = t.entropyLabel;
+      document.getElementById('entropyValue').innerText = t.entropyValue(interval);
+      document.getElementById('content').innerHTML = document.getElementById('content').innerHTML.includes('Carregando') ? t.loading : document.getElementById('content').innerHTML;
+      document.getElementById('timerText').innerText = t.timerText;
+      document.getElementById('historyTitle').innerText = t.historyTitle;
+      document.querySelectorAll('.copy-btn').forEach(btn => btn.innerText = t.copyBtn);
+      updateHistory();
+    }
+
+    function toggleLang() {
+      lang = lang === 'pt' ? 'en' : 'pt';
+      document.getElementById('langBtn').innerText = lang.toUpperCase();
+      updateUI();
+      updateContent();
+    }
+
+    function setMode(newMode) {
+      mode = newMode;
+      updateContent();
+      resetCountdown();
+    }
+
+    function updateEntropy(val) {
+      const numVal = parseInt(val) || 10;
+      interval = numVal < 1 ? 1 : numVal;
+      document.getElementById('entropy').value = interval;
+      document.getElementById('entropyValue').innerText = translations[lang].entropyValue(interval);
+      resetCountdown();
+    }
+
+    function resetCountdown() {
+      countdown = interval;
+      document.getElementById('countdown').innerText = countdown;
+      updateProgressBar();
+    }
+
+    function updateProgressBar() {
+      const progress = document.getElementById('progress');
+      const percentage = (countdown / interval) * 100;
+      progress.style.width = `${percentage}%`;
+    }
+
+    function toggleTimer() {
+      const t = translations[lang];
+      if (timerPaused) {
+        startTimer();
+        timerPaused = false;
+        document.querySelector('#pauseBtn').innerText = t.pauseBtn;
+      } else {
+        clearInterval(timer);
+        timerPaused = true;
+        document.querySelector('#pauseBtn').innerText = t.resumeBtn;
+      }
+    }
+
+    function addToHistory(type, content) {
+      const maxHistory = 10;
+      const t = translations[lang];
+      const displayType = type === 'image' ? t.imageType : t.textType;
+      const displayContent = content.substring(0, 50) + (content.length > 50 ? '...' : '');
+      history.unshift({ type: displayType, content: displayContent });
+      if (history.length > maxHistory) history.pop();
+      updateHistory();
+    }
+
+    function updateHistory() {
+      const t = translations[lang];
+      const historyList = document.getElementById('historyList');
+      historyList.innerHTML = history.length === 0
+        ? `<li>${t.loading}</li>`
+        : history.map(item => `<li>${item.type}: ${item.content}</li>`).join('');
+    }
+
+    async function updateContent() {
+      const content = document.getElementById('content');
+      const t = translations[lang];
+      content.classList.add('loading');
+      content.innerHTML = t.loading;
+
+      try {
+        if (mode === 'image') {
+          const url = `https://picsum.photos/600/400?random=${Date.now()}`;
+          content.innerHTML = `<img src="${url}" alt="Random image">`;
+          addToHistory('image', t.imageDesc);
+        } else if (mode === 'text') {
+          const wikiLang = lang === 'pt' ? 'pt' : 'en';
+          const wiki = await fetch(`https://${wikiLang}.wikipedia.org/api/rest_v1/page/random/summary`);
+          if (!wiki.ok) throw new Error('Wikipedia load error');
+          const wikiData = await wiki.json();
+          const textContent = `<h3>${wikiData.title}</h3><p>${wikiData.extract}</p>`;
+          content.innerHTML = `<div>${textContent}</div><button class="copy-btn" onclick="copyToClipboard()">${t.copyBtn}</button>`;
+          addToHistory('text', textContent);
+        }
+      } catch (err) {
+        content.innerHTML = `<p>⚠️ ${t.errorMsg} ${err.message}</p>`;
+      } finally {
+        content.classList.remove('loading');
+      }
+    }
+
+    function copyToClipboard() {
+      const t = translations[lang];
+      const contentDiv = document.getElementById('content').querySelector('div');
+      const text = contentDiv ? (contentDiv.innerText || contentDiv.textContent) : '';
+      navigator.clipboard.writeText(text).then(() => {
+        alert(t.copySuccess);
+      }).catch(() => {
+        alert(t.copyError);
+      });
+    }
+
+    function startTimer() {
+      timer = setInterval(() => {
+        countdown--;
+        updateProgressBar();
+        if (countdown <= 0) {
+          updateContent();
+          resetCountdown();
+        }
+        document.getElementById('countdown').innerText = countdown;
+      }, 1000);
+    }
+
+    // Initialize
+    updateUI();
+    document.getElementById('langBtn').innerText = 'EN';
+    updateContent();
+    resetCountdown();
+    startTimer();
+  </script>
+</body>
+</html>
